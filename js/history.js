@@ -231,8 +231,11 @@ async function updateLeaderboard() {
                     leaderboardBody.appendChild(row);
                 });
                 
-                // 如果当前用户不在前50名中，在底部添加当前用户的排名信息
-                if (data.currentUser && window.userId) {
+                // 检查当前用户是否在前50名中
+                const userInTop50 = data.leaderboard.some(user => user.id == window.userId);
+                
+                // 如果当前用户不在前50名中，且有currentUser数据，在底部添加当前用户的排名信息
+                if (!userInTop50 && data.currentUser && window.userId) {
                     // 添加一个分隔行
                     const separatorRow = document.createElement('tr');
                     const separatorCell = document.createElement('td');
