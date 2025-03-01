@@ -1,12 +1,140 @@
 const express = require('express');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
+const https = require('https');
 const app = express();
 const port = 3000;
+
+// 维基百科知识缓存
+let wikiCache = [];
+const CACHE_SIZE = 100;
+const CACHE_THRESHOLD = 20;
+let isRefilling = false;
+
+// 获取随机维基百科知识
+async function fetchRandomWiki() {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'zh.wikipedia.org',
+            path: '/api/rest_v1/page/random/summary',
+            headers: {
+                'User-Agent': 'RandomCar/1.0'
+            }
+        };
+
+        const makeRequest = (requestOptions) => {
+            https.get(requestOptions, (res) => {
+                // 处理重定向
+                if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303 || res.statusCode === 307 || res.statusCode === 308) {
+                    if (res.headers.location) {
+                        console.log(`重定向到: ${res.headers.location}`);
+                        // 解析重定向URL
+                        const redirectUrl = new URL(res.headers.location.startsWith('http') ? 
+                            res.headers.location : 
+                            `https://${requestOptions.hostname}${res.headers.location}`);
+                        
+                        // 创建新的请求选项
+                        const newOptions = {
+                            hostname: redirectUrl.hostname,
+                            path: redirectUrl.pathname + redirectUrl.search,
+                            headers: options.headers
+                        };
+                        
+                        // 跟随重定向
+                        return makeRequest(newOptions);
+                    }
+                }
+                
+                // 检查状态码
+                if (res.statusCode !== 200) {
+                    return reject(new Error(`HTTP状态码: ${res.statusCode} ${res.statusMessage}`));
+                }
+                
+                let data = '';
+                res.on('data', (chunk) => data += chunk);
+                res.on('end', () => {
+                    try {
+                        // 检查数据是否为空
+                        if (!data.trim()) {
+                            return reject(new Error('收到空响应'));
+                        }
+                        
+                        const wikiData = JSON.parse(data);
+                        resolve({
+                            title: wikiData.title,
+                            description: wikiData.description || '',
+                            extract: wikiData.extract || '',
+                            thumbnail: wikiData.thumbnail ? wikiData.thumbnail.source : null,
+                            url: wikiData.content_urls.desktop.page
+                        });
+                    } catch (error) {
+                        console.error('解析JSON失败:', error.message);
+                        console.error('收到的数据:', data.substring(0, 200) + '...');
+                        reject(error);
+                    }
+                });
+            }).on('error', (err) => {
+                console.error('HTTP请求错误:', err.message);
+                reject(err);
+            });
+        };
+        
+        makeRequest(options);
+    });
+}
+
+// 异步填充缓存
+async function refillCache() {
+    if (isRefilling || wikiCache.length >= CACHE_SIZE) return;
+    
+    isRefilling = true;
+    try {
+        while (wikiCache.length < CACHE_SIZE) {
+            const wikiData = await fetchRandomWiki();
+            wikiCache.push(wikiData);
+            // 添加延迟以避免请求过于频繁
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    } catch (error) {
+        console.error('填充维基百科缓存失败:', error);
+    } finally {
+        isRefilling = false;
+    }
+}
+
+// 初始填充缓存
+refillCache();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname)));
+
+// 获取随机维基百科知识的API端点
+app.get('/api/wiki/random', (req, res) => {
+    if (wikiCache.length === 0) {
+        return res.status(503).json({
+            success: false,
+            message: '维基百科知识缓存为空，请稍后再试'
+        });
+    }
+
+    // 从缓存中随机获取一条知识
+    const randomIndex = Math.floor(Math.random() * wikiCache.length);
+    const wikiData = wikiCache[randomIndex];
+
+    // 从缓存中移除已使用的知识
+    wikiCache.splice(randomIndex, 1);
+
+    // 如果缓存数量低于阈值，触发异步补充
+    if (wikiCache.length < CACHE_THRESHOLD) {
+        refillCache();
+    }
+
+    res.json({
+        success: true,
+        data: wikiData
+    });
+});
 
 // 抽奖配置
 const config = {

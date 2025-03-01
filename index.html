@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/modal.css">
     <link rel="stylesheet" href="styles/history.css">
+    <link rel="stylesheet" href="styles/wiki.css">
 </head>
 <body>
     <!-- 登录/注册模态框 -->
@@ -91,10 +92,25 @@
         </div>
     </div>
 
+    <!-- 知识学习模态框 -->
+    <div class="wiki-modal" id="wikiModal">
+        <div class="wiki-content">
+            <h2 id="wikiTitle" style="color: white;"></h2>
+            <div id="wikiImageContainer" class="wiki-image-container">
+                <img id="wikiImage" src="" alt="知识图片">
+            </div>
+            <p id="wikiDescription" class="wiki-description"></p>
+            <p id="wikiExtract" class="wiki-extract"></p>
+            <div class="wiki-timer" id="wikiTimer">10</div>
+            <button id="wikiContinueButton" class="wiki-continue-button" disabled>继续</button>
+        </div>
+    </div>
+
     <script type="module" src="js/config.js"></script>
     <script type="module" src="js/audio.js"></script>
     <script type="module" src="js/history.js"></script>
     <script type="module" src="js/animation.js"></script>
+    <script type="module" src="js/wiki.js"></script>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

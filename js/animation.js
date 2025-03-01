@@ -2,6 +2,7 @@
 import { startRollSound, stopRollSound, updateRollSpeed, playDropSound } from './audio.js';
 import { config } from './config.js';
 import { addToHistory, loadHistory } from './history.js';
+import { fetchRandomWiki } from './wiki.js';
 
 let isSpinning = false;
 let lastItemIndex = -1; // 跟踪上一个经过的物品索引
@@ -34,6 +35,64 @@ async function createItems() {
 async function startSpinAnimation() {
     if (isSpinning) return;
 
+    // 显示知识学习模态框
+    const wikiModal = document.getElementById('wikiModal');
+    const wikiTitle = document.getElementById('wikiTitle');
+    const wikiImage = document.getElementById('wikiImage');
+    const wikiDescription = document.getElementById('wikiDescription');
+    const wikiExtract = document.getElementById('wikiExtract');
+    const wikiTimer = document.getElementById('wikiTimer');
+    const wikiContinueButton = document.getElementById('wikiContinueButton');
+
+    try {
+        // 获取随机维基百科知识
+        const wikiData = await fetchRandomWiki();
+        
+        // 更新模态框内容
+        wikiTitle.textContent = wikiData.title;
+        if (wikiData.thumbnail) {
+            wikiImage.src = wikiData.thumbnail;
+            wikiImage.style.display = 'block';
+        } else {
+            wikiImage.style.display = 'none';
+        }
+        wikiDescription.textContent = wikiData.description;
+        wikiExtract.textContent = wikiData.extract;
+        
+        // 重置继续按钮状态
+        wikiContinueButton.disabled = true;
+        
+        // 显示模态框
+        wikiModal.style.display = 'block';
+
+        // 10秒倒计时
+        let timeLeft = 10;
+        const timerInterval = setInterval(() => {
+            wikiTimer.textContent = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                // 启用继续按钮
+                wikiContinueButton.disabled = false;
+            }
+            timeLeft--;
+        }, 1000);
+        
+        // 添加继续按钮点击事件
+        wikiContinueButton.onclick = () => {
+            if (!wikiContinueButton.disabled) {
+                wikiModal.style.display = 'none';
+                startSpinProcess(); // 开始抽奖流程
+            }
+        };
+
+    } catch (error) {
+        console.error('获取维基百科知识失败:', error);
+        startSpinProcess(); // 如果获取知识失败，直接开始抽奖
+    }
+}
+
+// 将原有的抽奖逻辑移到单独的函数中
+async function startSpinProcess() {
     const itemsContainer = document.getElementById('itemsContainer');
     itemsContainer.style.transition = 'none';
     itemsContainer.style.transform = 'translateX(0)';
