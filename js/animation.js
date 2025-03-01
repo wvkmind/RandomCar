@@ -100,14 +100,14 @@ async function startSpinAnimation() {
         // 计算最终偏移量，使中奖物品停在选择器位置
         const finalOffset = winnerIndex * itemWidth - targetPosition;
 
-        // 先快速滚动一圈
-        const oneRoundOffset = displayItems.length / 5 * itemWidth; // 一圈的长度
+        // 先快速旋转一整圈
+        const fullRoundOffset = displayItems.length * itemWidth; // 完整一圈的长度
         
-        // 设置快速滚动的CSS过渡效果
-        itemsContainer.style.transition = 'transform 1s cubic-bezier(0.2, 0.4, 0.8, 0.9)';
-        itemsContainer.style.transform = `translateX(-${oneRoundOffset}px)`;
+        // 设置快速旋转的CSS过渡效果
+        itemsContainer.style.transition = 'transform 0.8s cubic-bezier(0.1, 0.7, 0.9, 1)';
+        itemsContainer.style.transform = `translateX(-${fullRoundOffset}px)`;
         
-        // 快速滚动一圈后，再进入减速动画
+        // 快速旋转一整圈后，再进行原有的动画逻辑
         setTimeout(() => {
             // 重置过渡效果，立即回到起点
             itemsContainer.style.transition = 'none';
@@ -116,10 +116,27 @@ async function startSpinAnimation() {
             // 强制重绘
             void itemsContainer.offsetWidth;
             
-            // 设置最终减速动画的CSS过渡效果
-            itemsContainer.style.transition = 'transform 5s cubic-bezier(0.15, 0.85, 0.35, 1)';
-            itemsContainer.style.transform = `translateX(-${finalOffset}px)`;
-        });
+            // 先快速滚动一圈
+            const oneRoundOffset = displayItems.length / 5 * itemWidth; // 一圈的长度
+            
+            // 设置快速滚动的CSS过渡效果
+            itemsContainer.style.transition = 'transform 1s cubic-bezier(0.2, 0.4, 0.8, 0.9)';
+            itemsContainer.style.transform = `translateX(-${oneRoundOffset}px)`;
+            
+            // 快速滚动一圈后，再进入减速动画
+            setTimeout(() => {
+                // 重置过渡效果，立即回到起点
+                itemsContainer.style.transition = 'none';
+                itemsContainer.style.transform = 'translateX(0)';
+                
+                // 强制重绘
+                void itemsContainer.offsetWidth;
+                
+                // 设置最终减速动画的CSS过渡效果
+                itemsContainer.style.transition = 'transform 5s cubic-bezier(0.15, 0.85, 0.35, 1)';
+                itemsContainer.style.transform = `translateX(-${finalOffset}px)`;
+            }, 1000);
+        }, 800);
 
         const startTime = performance.now();
         const duration = 5000;
@@ -143,8 +160,8 @@ async function startSpinAnimation() {
             // 更新音效速度和音量
             updateRollSpeed(progress);
             
-            // 在动画进度到达60%时停止音效，为最终结果展示创造更自然的过渡
-            if (progress >= 0.6) {
+            // 在动画进度到达70%时停止音效，为最终结果展示创造更自然的过渡
+            if (progress >= 0.7) {
                 stopRollSound();
             }
             

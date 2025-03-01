@@ -169,58 +169,124 @@ function clearHistory() {
  */
 async function updateLeaderboard() {
     try {
-        const response = await fetch('/leaderboard');
+        // 添加当前用户ID作为参数，以便服务器识别当前用户
+        const userId = window.userId || '';
+        const response = await fetch(`/leaderboard?userId=${userId}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const leaderboardData = await response.json();
+        const data = await response.json();
         const leaderboardBody = document.getElementById('leaderboardBody');
         if (leaderboardBody) {
             leaderboardBody.innerHTML = '';
             
-            leaderboardData.forEach((user, index) => {
-                const row = document.createElement('tr');
+            // 显示前50名用户
+            if (data.leaderboard && Array.isArray(data.leaderboard)) {
+                data.leaderboard.forEach((user, index) => {
+                    const row = document.createElement('tr');
+                    
+                    const rankCell = document.createElement('td');
+                    rankCell.textContent = index + 1;
+                    row.appendChild(rankCell);
+                    
+                    const usernameCell = document.createElement('td');
+                    usernameCell.textContent = user.username;
+                    // 如果是当前用户，高亮显示
+                    if (user.id == window.userId) {
+                        usernameCell.style.fontWeight = 'bold';
+                        row.classList.add('current-user');
+                    }
+                    row.appendChild(usernameCell);
+                    
+                    const covertCell = document.createElement('td');
+                    covertCell.textContent = user.stats.covert;
+                    covertCell.className = 'covert-count';
+                    row.appendChild(covertCell);
+                    
+                    const classifiedCell = document.createElement('td');
+                    classifiedCell.textContent = user.stats.classified;
+                    classifiedCell.className = 'classified-count';
+                    row.appendChild(classifiedCell);
+                    
+                    const restrictedCell = document.createElement('td');
+                    restrictedCell.textContent = user.stats.restricted;
+                    restrictedCell.className = 'restricted-count';
+                    row.appendChild(restrictedCell);
+                    
+                    const milspecCell = document.createElement('td');
+                    milspecCell.textContent = user.stats.milspec;
+                    milspecCell.className = 'milspec-count';
+                    row.appendChild(milspecCell);
+                    
+                    const industrialCell = document.createElement('td');
+                    industrialCell.textContent = user.stats.industrial;
+                    industrialCell.className = 'industrial-count';
+                    row.appendChild(industrialCell);
+                    
+                    const totalCell = document.createElement('td');
+                    totalCell.textContent = user.stats.total;
+                    row.appendChild(totalCell);
+                    
+                    leaderboardBody.appendChild(row);
+                });
                 
-                const rankCell = document.createElement('td');
-                rankCell.textContent = index + 1;
-                row.appendChild(rankCell);
-                
-                const usernameCell = document.createElement('td');
-                usernameCell.textContent = user.username;
-                row.appendChild(usernameCell);
-                
-                const covertCell = document.createElement('td');
-                covertCell.textContent = user.stats.covert;
-                covertCell.className = 'covert-count';
-                row.appendChild(covertCell);
-                
-                const classifiedCell = document.createElement('td');
-                classifiedCell.textContent = user.stats.classified;
-                classifiedCell.className = 'classified-count';
-                row.appendChild(classifiedCell);
-                
-                const restrictedCell = document.createElement('td');
-                restrictedCell.textContent = user.stats.restricted;
-                restrictedCell.className = 'restricted-count';
-                row.appendChild(restrictedCell);
-                
-                const milspecCell = document.createElement('td');
-                milspecCell.textContent = user.stats.milspec;
-                milspecCell.className = 'milspec-count';
-                row.appendChild(milspecCell);
-                
-                const industrialCell = document.createElement('td');
-                industrialCell.textContent = user.stats.industrial;
-                industrialCell.className = 'industrial-count';
-                row.appendChild(industrialCell);
-                
-                const totalCell = document.createElement('td');
-                totalCell.textContent = user.stats.total;
-                row.appendChild(totalCell);
-                
-                leaderboardBody.appendChild(row);
-            });
+                // 如果当前用户不在前50名中，在底部添加当前用户的排名信息
+                if (data.currentUser && window.userId) {
+                    // 添加一个分隔行
+                    const separatorRow = document.createElement('tr');
+                    const separatorCell = document.createElement('td');
+                    separatorCell.colSpan = 8;
+                    separatorCell.textContent = '...';
+                    separatorCell.style.textAlign = 'center';
+                    separatorRow.appendChild(separatorCell);
+                    leaderboardBody.appendChild(separatorRow);
+                    
+                    // 添加当前用户行
+                    const currentUserRow = document.createElement('tr');
+                    currentUserRow.classList.add('current-user');
+                    
+                    const currentRankCell = document.createElement('td');
+                    currentRankCell.textContent = data.currentUser.rank;
+                    currentUserRow.appendChild(currentRankCell);
+                    
+                    const currentUsernameCell = document.createElement('td');
+                    currentUsernameCell.textContent = data.currentUser.data.username;
+                    currentUsernameCell.style.fontWeight = 'bold';
+                    currentUserRow.appendChild(currentUsernameCell);
+                    
+                    const currentCovertCell = document.createElement('td');
+                    currentCovertCell.textContent = data.currentUser.data.stats.covert;
+                    currentCovertCell.className = 'covert-count';
+                    currentUserRow.appendChild(currentCovertCell);
+                    
+                    const currentClassifiedCell = document.createElement('td');
+                    currentClassifiedCell.textContent = data.currentUser.data.stats.classified;
+                    currentClassifiedCell.className = 'classified-count';
+                    currentUserRow.appendChild(currentClassifiedCell);
+                    
+                    const currentRestrictedCell = document.createElement('td');
+                    currentRestrictedCell.textContent = data.currentUser.data.stats.restricted;
+                    currentRestrictedCell.className = 'restricted-count';
+                    currentUserRow.appendChild(currentRestrictedCell);
+                    
+                    const currentMilspecCell = document.createElement('td');
+                    currentMilspecCell.textContent = data.currentUser.data.stats.milspec;
+                    currentMilspecCell.className = 'milspec-count';
+                    currentUserRow.appendChild(currentMilspecCell);
+                    
+                    const currentIndustrialCell = document.createElement('td');
+                    currentIndustrialCell.textContent = data.currentUser.data.stats.industrial;
+                    currentIndustrialCell.className = 'industrial-count';
+                    currentUserRow.appendChild(currentIndustrialCell);
+                    
+                    const currentTotalCell = document.createElement('td');
+                    currentTotalCell.textContent = data.currentUser.data.stats.total;
+                    currentUserRow.appendChild(currentTotalCell);
+                    
+                    leaderboardBody.appendChild(currentUserRow);
+                }
+            }
         }
     } catch (error) {
         console.error('获取排行榜失败:', error);

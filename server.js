@@ -401,12 +401,15 @@ app.get('/spin', (req, res) => {
 
 // 获取排行榜
 app.get('/leaderboard', (req, res) => {
-    db.all('SELECT username, covert, classified, restricted, milspec, industrial, total FROM users', [], (err, users) => {
+    const userId = req.query.userId;
+    
+    db.all('SELECT id, username, covert, classified, restricted, milspec, industrial, total FROM users', [], (err, users) => {
         if (err) {
             return res.status(500).json({ success: false, message: '获取排行榜失败' });
         }
 
         const leaderboardData = users.map(user => ({
+            id: user.id,
             username: user.username,
             stats: {
                 covert: user.covert,
@@ -440,7 +443,33 @@ app.get('/leaderboard', (req, res) => {
             return b.stats.industrial - a.stats.industrial;
         });
 
-        res.json(leaderboardData);
+        // 查找当前用户的排名
+        let currentUserRank = -1;
+        let currentUserData = null;
+        
+        if (userId) {
+            for (let i = 0; i < leaderboardData.length; i++) {
+                if (leaderboardData[i].id == userId) {
+                    currentUserRank = i + 1;
+                    currentUserData = leaderboardData[i];
+                    break;
+                }
+            }
+        }
+        
+        // 只返回前50名用户
+        const top50 = leaderboardData.slice(0, 50);
+        
+        // 如果当前用户不在前50名中，添加用户排名信息
+        const result = {
+            leaderboard: top50,
+            currentUser: currentUserRank > 50 ? {
+                rank: currentUserRank,
+                data: currentUserData
+            } : null
+        };
+
+        res.json(result);
     });
 });
 
