@@ -78,8 +78,19 @@ async function startSpinAnimation() {
         }, 1000);
         
         // 添加继续按钮点击事件
-        wikiContinueButton.onclick = () => {
+        wikiContinueButton.onclick = async () => {
             if (!wikiContinueButton.disabled) {
+                // 如果有图片，在关闭模态框前删除图片
+                if (wikiData.thumbnail && wikiData.thumbnail.startsWith('/wiki-images/')) {
+                    try {
+                        // 导入删除图片的函数
+                        const { deleteWikiImage } = await import('./wikiService.js');
+                        await deleteWikiImage(wikiData.thumbnail);
+                    } catch (error) {
+                        console.error('删除维基百科图片失败:', error);
+                    }
+                }
+                
                 wikiModal.style.display = 'none';
                 startSpinProcess(); // 开始抽奖流程
             }
@@ -108,7 +119,11 @@ async function startSpinProcess() {
     
     const data = await response.json();
     if (!data.success) {
-        console.error('获取抽奖结果失败');
+        console.error('获取抽奖结果失败:', data.message);
+        // 显示错误消息给用户
+        alert(data.message || '获取抽奖结果失败');
+        // 重新启用抽奖按钮
+        document.getElementById('spinButton').disabled = false;
         return;
     }
     

@@ -2,14 +2,41 @@ const express = require('express');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const https = require('https');
+const fs = require('fs');
 const app = express();
 const port = 3000;
+const { downloadImage } = require('./server/wikiUtils');
+const { checkWikiContent } = require('./server/sensitiveWords');
 
 // 维基百科知识缓存
 let wikiCache = [];
-const CACHE_SIZE = 100;
-const CACHE_THRESHOLD = 20;
+// const CACHE_SIZE = 100;
+// const CACHE_THRESHOLD = 20;
+const CACHE_SIZE = 2;
+const CACHE_THRESHOLD = 1;
 let isRefilling = false;
+
+// 确保wiki图片目录存在
+const wikiImagesDir = path.join(__dirname, 'public', 'wiki-images');
+
+// 清理wiki图片目录
+function cleanWikiImagesDir() {
+    if (fs.existsSync(wikiImagesDir)) {
+        const files = fs.readdirSync(wikiImagesDir);
+        for (const file of files) {
+            try {
+                fs.unlinkSync(path.join(wikiImagesDir, file));
+                console.log(`已删除wiki图片: ${file}`);
+            } catch (error) {
+                console.error(`删除wiki图片失败: ${file}`, error);
+            }
+        }
+        console.log('wiki图片目录清理完成');
+    }
+}
+
+// 服务器启动时清理wiki图片
+cleanWikiImagesDir();
 
 // 获取随机维基百科知识
 async function fetchRandomWiki() {
@@ -52,7 +79,7 @@ async function fetchRandomWiki() {
                 
                 let data = '';
                 res.on('data', (chunk) => data += chunk);
-                res.on('end', () => {
+                res.on('end', async () => {
                     try {
                         // 检查数据是否为空
                         if (!data.trim()) {
@@ -60,13 +87,56 @@ async function fetchRandomWiki() {
                         }
                         
                         const wikiData = JSON.parse(data);
-                        resolve({
+                        
+                        // 生成唯一的图片文件名
+                        const imageId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                        let localThumbnailPath = null;
+                        let localThumbnailUrl = null;
+                        
+                        // 如果有缩略图，下载并保存到本地
+                        if (wikiData.thumbnail && wikiData.thumbnail.source) {
+                            const imageUrl = wikiData.thumbnail.source;
+                            const imageExt = path.extname(new URL(imageUrl).pathname) || '.jpg';
+                            localThumbnailPath = path.join(wikiImagesDir, `${imageId}${imageExt}`);
+                            
+                            try {
+                                await downloadImage(imageUrl, localThumbnailPath);
+                                // 转换为Web可访问的URL路径
+                                localThumbnailUrl = `/wiki-images/${path.basename(localThumbnailPath)}`;
+                                console.log(`图片已保存到: ${localThumbnailPath}`);
+                            } catch (error) {
+                                console.error('下载图片失败:', error);
+                                // 如果下载失败，仍然使用原始URL
+                                localThumbnailUrl = wikiData.thumbnail.source;
+                            }
+                        }
+                        
+                        const processedWikiData = {
                             title: wikiData.title,
                             description: wikiData.description || '',
                             extract: wikiData.extract || '',
-                            thumbnail: wikiData.thumbnail ? wikiData.thumbnail.source : null,
+                            thumbnail: localThumbnailUrl,
+                            originalThumbnail: wikiData.thumbnail ? wikiData.thumbnail.source : null,
                             url: wikiData.content_urls.desktop.page
-                        });
+                        };
+                        
+                        // 检查是否包含敏感内容
+                        if (checkWikiContent(processedWikiData)) {
+                            console.log('检测到敏感内容，跳过此条目');
+                            // 如果下载了图片，删除它
+                            if (localThumbnailPath && fs.existsSync(localThumbnailPath)) {
+                                try {
+                                    fs.unlinkSync(localThumbnailPath);
+                                    console.log(`已删除敏感内容图片: ${localThumbnailPath}`);
+                                } catch (error) {
+                                    console.error(`删除敏感内容图片失败: ${localThumbnailPath}`, error);
+                                }
+                            }
+                            // 重新获取一个新的条目
+                            return makeRequest(options);
+                        }
+                        
+                        resolve(processedWikiData);
                     } catch (error) {
                         console.error('解析JSON失败:', error.message);
                         console.error('收到的数据:', data.substring(0, 200) + '...');
@@ -136,6 +206,35 @@ app.get('/api/wiki/random', (req, res) => {
     });
 });
 
+// 删除维基百科图片的API端点
+app.post('/api/wiki/delete-image', (req, res) => {
+    const { imagePath } = req.body;
+    
+    if (!imagePath || !imagePath.startsWith('/wiki-images/')) {
+        return res.status(400).json({
+            success: false,
+            message: '无效的图片路径'
+        });
+    }
+
+    const localImagePath = path.join(__dirname, 'public', imagePath);
+    if (fs.existsSync(localImagePath)) {
+        try {
+            fs.unlinkSync(localImagePath);
+            console.log(`已删除图片: ${localImagePath}`);
+            res.json({ success: true });
+        } catch (error) {
+            console.error(`删除图片失败: ${localImagePath}`, error);
+            res.status(500).json({
+                success: false,
+                message: '删除图片失败'
+            });
+        }
+    } else {
+        res.json({ success: true }); // 如果图片不存在，也返回成功
+    }
+});
+
 // 抽奖配置
 const config = {
     covert: {
@@ -182,7 +281,8 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
             restricted INTEGER DEFAULT 0,
             milspec INTEGER DEFAULT 0,
             industrial INTEGER DEFAULT 0,
-            total INTEGER DEFAULT 0
+            total INTEGER DEFAULT 0,
+            last_spin_time TIMESTAMP DEFAULT NULL
         )`);
         
         // 创建用户收藏表
@@ -438,6 +538,18 @@ app.get('/spin', (req, res) => {
         if (err || !user) {
             return res.json({ success: true, items: [], message: '用户验证失败' });
         }
+
+        // 检查用户上次抽奖时间
+        const now = new Date();
+        const lastSpinTime = user.last_spin_time ? new Date(user.last_spin_time) : null;
+        
+        if (lastSpinTime && (now - lastSpinTime) < 10000) { // 10秒冷却时间
+            const remainingTime = Math.ceil((10000 - (now - lastSpinTime)) / 1000);
+            return res.json({
+                success: false,
+                message: `请等待${remainingTime}秒后再次抽奖`
+            });
+        }
     
         const items = [];
         const totalProbability = Object.values(config).reduce((sum, item) => sum + item.probability, 0);
@@ -498,8 +610,9 @@ app.get('/spin', (req, res) => {
         }
     
         // 自动记录中奖物品到历史记录
-        // 更新用户记录
-        db.run(`UPDATE users SET ${selectedType} = ${selectedType} + 1, total = total + 1 WHERE id = ?`, [userId], function(err) {
+        // 更新用户记录和最后抽奖时间
+        const currentTime = new Date().toISOString();
+        db.run(`UPDATE users SET ${selectedType} = ${selectedType} + 1, total = total + 1, last_spin_time = ? WHERE id = ?`, [currentTime, userId], function(err) {
             if (err) {
                 console.error('更新记录失败:', err);
                 return res.json({ success: true, items, winningItem });
