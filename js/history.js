@@ -12,16 +12,38 @@ let history = {
 /**
  * 加载历史记录
  */
-function loadHistory() {
-    const savedHistory = localStorage.getItem(`carHistory_${window.currentUser}`);
-    if (savedHistory) {
-        history = JSON.parse(savedHistory);
-        history.covert = history.covert.slice(-5);
-        history.classified = history.classified.slice(-5);
-        history.restricted = history.restricted.slice(-5);
-        history.milspec = history.milspec.slice(-5);
-        history.industrial = history.industrial.slice(-5);
-        updateHistoryDisplay();
+async function loadHistory() {
+    if (!window.userId || !window.userToken) return;
+    
+    try {
+        const response = await fetch(`/collections?userId=${window.userId}&token=${window.userToken}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (data.success && data.collections) {
+            // 重置历史记录
+            history = {
+                covert: [],
+                classified: [],
+                restricted: [],
+                milspec: [],
+                industrial: []
+            };
+            
+            // 将服务器返回的收藏转换为历史记录格式
+            data.collections.forEach(item => {
+                const imagePath = `./public/${item.type}/pic${item.image_index}.png`;
+                if (history[item.type].length < 5) {
+                    history[item.type].push(imagePath);
+                }
+            });
+            
+            updateHistoryDisplay();
+        }
+    } catch (error) {
+        console.error('获取历史记录失败:', error);
     }
 }
 
@@ -29,25 +51,66 @@ function loadHistory() {
  * 保存历史记录
  */
 function saveHistory() {
-    if (window.currentUser) {
-        localStorage.setItem(`carHistory_${window.currentUser}`, JSON.stringify(history));
-        updateLeaderboard();
-    }
+    // 历史记录现在由服务器管理，不需要本地保存
+    updateLeaderboard();
 }
 
 /**
  * 添加物品到历史记录
  * @param {Object} item - 抽取到的物品
  */
-function addToHistory(item) {
-    if (item && item.type && window.currentUser) {
-        history[item.type].push(item.image);
-        // 保持每种类型最多显示5个
-        if (history[item.type].length > 5) {
-            history[item.type] = history[item.type].slice(-5);
+async function addToHistory(item) {
+    if (!item || !item.type || !window.userId || !window.userToken) return;
+    
+    // 从图片路径中提取索引
+    const pathParts = item.image.split('/');
+    const fileName = pathParts[pathParts.length - 1];
+    const imageIndex = parseInt(fileName.replace('pic', '').replace('.png', ''));
+    
+    try {
+        const response = await fetch('/addRecord', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: window.userId,
+                token: window.userToken,
+                type: item.type,
+                imageIndex: imageIndex
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        saveHistory();
-        updateHistoryDisplay();
+        
+        const data = await response.json();
+        if (data.success) {
+            // 更新本地历史记录对象
+            if (data.collections) {
+                // 重置历史记录
+                history = {
+                    covert: [],
+                    classified: [],
+                    restricted: [],
+                    milspec: [],
+                    industrial: []
+                };
+                
+                // 将服务器返回的收藏转换为历史记录格式
+                data.collections.forEach(item => {
+                    const imagePath = `./public/${item.type}/pic${item.image_index}.png`;
+                    if (history[item.type].length < 5) {
+                        history[item.type].push(imagePath);
+                    }
+                });
+            }
+            
+            updateHistoryDisplay();
+        }
+    } catch (error) {
+        console.error('添加历史记录失败:', error);
     }
 }
 
@@ -98,73 +161,71 @@ function clearHistory() {
         milspec: [],
         industrial: []
     };
-    saveHistory();
     updateHistoryDisplay();
 }
 
 /**
  * 更新排行榜
  */
-function updateLeaderboard() {
-    const leaderboardData = [];
-    
-    // 获取所有用户数据
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key.startsWith('carHistory_')) {
-            const username = key.replace('carHistory_', '');
-            const userData = JSON.parse(localStorage.getItem(key));
+async function updateLeaderboard() {
+    try {
+        const response = await fetch('/leaderboard');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const leaderboardData = await response.json();
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        if (leaderboardBody) {
+            leaderboardBody.innerHTML = '';
             
-            leaderboardData.push({
-                username: username,
-                covert: userData.covert ? userData.covert.length : 0,
-                classified: userData.classified ? userData.classified.length : 0,
-                restricted: userData.restricted ? userData.restricted.length : 0,
-                milspec: userData.milspec ? userData.milspec.length : 0,
-                industrial: userData.industrial ? userData.industrial.length : 0
+            leaderboardData.forEach((user, index) => {
+                const row = document.createElement('tr');
+                
+                const rankCell = document.createElement('td');
+                rankCell.textContent = index + 1;
+                row.appendChild(rankCell);
+                
+                const usernameCell = document.createElement('td');
+                usernameCell.textContent = user.username;
+                row.appendChild(usernameCell);
+                
+                const covertCell = document.createElement('td');
+                covertCell.textContent = user.stats.covert;
+                covertCell.className = 'covert-count';
+                row.appendChild(covertCell);
+                
+                const classifiedCell = document.createElement('td');
+                classifiedCell.textContent = user.stats.classified;
+                classifiedCell.className = 'classified-count';
+                row.appendChild(classifiedCell);
+                
+                const restrictedCell = document.createElement('td');
+                restrictedCell.textContent = user.stats.restricted;
+                restrictedCell.className = 'restricted-count';
+                row.appendChild(restrictedCell);
+                
+                const milspecCell = document.createElement('td');
+                milspecCell.textContent = user.stats.milspec;
+                milspecCell.className = 'milspec-count';
+                row.appendChild(milspecCell);
+                
+                const industrialCell = document.createElement('td');
+                industrialCell.textContent = user.stats.industrial;
+                industrialCell.className = 'industrial-count';
+                row.appendChild(industrialCell);
+                
+                const totalCell = document.createElement('td');
+                totalCell.textContent = user.stats.total;
+                row.appendChild(totalCell);
+                
+                leaderboardBody.appendChild(row);
             });
         }
-    }
-    
-    // 按照稀有度总数排序
-    leaderboardData.sort((a, b) => {
-        const totalA = a.covert * 5 + a.classified * 4 + a.restricted * 3 + a.milspec * 2 + a.industrial;
-        const totalB = b.covert * 5 + b.classified * 4 + b.restricted * 3 + b.milspec * 2 + b.industrial;
-        return totalB - totalA;
-    });
-    
-    // 更新排行榜显示
-    const leaderboardBody = document.getElementById('leaderboardBody');
-    if (leaderboardBody) {
-        leaderboardBody.innerHTML = '';
-        
-        leaderboardData.forEach((user, index) => {
-            const total = user.covert + user.classified + user.restricted + user.milspec + user.industrial;
-            
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${user.username}</td>
-                <td class="history-covert">${user.covert}</td>
-                <td class="history-classified">${user.classified}</td>
-                <td class="history-restricted">${user.restricted}</td>
-                <td class="history-milspec">${user.milspec}</td>
-                <td class="history-industrial">${user.industrial}</td>
-                <td>${total}</td>
-            `;
-            
-            leaderboardBody.appendChild(row);
-        });
+    } catch (error) {
+        console.error('获取排行榜失败:', error);
     }
 }
 
 // 导出函数
-export {
-    loadHistory,
-    saveHistory,
-    addToHistory,
-    updateHistoryDisplay,
-    clearHistory,
-    updateLeaderboard,
-    history
-};
+export { loadHistory, saveHistory, addToHistory, updateHistoryDisplay, clearHistory, updateLeaderboard, history };

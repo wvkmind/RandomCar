@@ -1,6 +1,7 @@
 // 动画处理模块
 import { startRollSound, stopRollSound, updateRollSpeed, playDropSound } from './audio.js';
 import { config } from './config.js';
+import { addToHistory, loadHistory } from './history.js';
 
 let isSpinning = false;
 let lastItemIndex = -1; // 跟踪上一个经过的物品索引
@@ -40,7 +41,7 @@ async function startSpinAnimation() {
     // 清空之前的物品
     itemsContainer.innerHTML = '';
 
-    const response = await fetch('/spin');
+    const response = await fetch(`/spin?userId=${window.userId}&token=${window.userToken}`);
     if (!response.ok) {
         console.error('获取抽奖结果失败');
         return;
@@ -164,9 +165,10 @@ async function startSpinAnimation() {
                 const selector = document.querySelector('.selector');
                 selector.classList.add('active');
                 
-                // 如果用户已登录，添加到历史记录
+                // 历史记录现在由后端自动添加，不再需要前端调用
+                // 加载最新的历史记录
                 if (window.currentUser) {
-                    addToHistory(winningItem);
+                    loadHistory();
                 }
             }
         }
