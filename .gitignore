@@ -1,0 +1,15 @@
+# 忽略node_modules目录
+node_modules/
+
+# 忽略wiki图片目录
+public/wiki-images/
+
+# 忽略数据库文件
+*.sqlite
+
+# 忽略日志文件
+*.log
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db

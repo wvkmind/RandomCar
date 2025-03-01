@@ -32,12 +32,25 @@ async function loadHistory() {
                 industrial: []
             };
             
-            // 将服务器返回的收藏转换为历史记录格式
+            // 将服务器返回的收藏转换为历史记录格式，按类型分组
+            const typeCollections = {};
             data.collections.forEach(item => {
-                const imagePath = `./public/${item.type}/pic${item.image_index}.png`;
-                if (history[item.type].length < 5) {
-                    history[item.type].push(imagePath);
+                if (!typeCollections[item.type]) {
+                    typeCollections[item.type] = [];
                 }
+                typeCollections[item.type].push(item);
+            });
+            
+            // 对每种类型的收藏按时间排序并只保留最新的5条
+            Object.keys(typeCollections).forEach(type => {
+                // 先清空当前类型的历史记录数组
+                history[type] = [];
+                
+                const sortedItems = typeCollections[type].sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
+                sortedItems.forEach(item => {
+                    const imagePath = `./public/${item.type}/pic${item.image_index}.png`;
+                    history[item.type].push(imagePath);
+                });
             });
             
             updateHistoryDisplay();
@@ -107,8 +120,11 @@ async function addToHistory(item) {
                     typeCollections[item.type].push(item);
                 });
                 
-               
+                // 对每种类型的收藏按时间排序并只保留最新的5条
                 Object.keys(typeCollections).forEach(type => {
+                    // 先清空当前类型的历史记录数组
+                    history[type] = [];
+                    
                     const sortedItems = typeCollections[type].sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
                     sortedItems.forEach(item => {
                         const imagePath = `./public/${item.type}/pic${item.image_index}.png`;

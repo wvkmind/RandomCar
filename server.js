@@ -630,17 +630,33 @@ app.get('/spin', (req, res) => {
                     return res.json({ success: true, items, winningItem });
                 }
     
-                // 如果该类型的收藏未达到5个，则添加到收藏
-                if (result.count < 5) {
-                    db.run('INSERT INTO user_collections (user_id, type, image_index) VALUES (?, ?, ?)', 
+                // 如果该类型的收藏已达到5个，则删除最旧的一条记录
+                if (result.count >= 5) {
+                    db.run('DELETE FROM user_collections WHERE user_id = ? AND type = ? AND created_at = (SELECT MIN(created_at) FROM user_collections WHERE user_id = ? AND type = ?)',
+                        [userId, selectedType, userId, selectedType], (err) => {
+                        if (err) {
+                            console.error('删除旧收藏失败:', err);
+                            return res.json({ success: true, items, winningItem });
+                        }
+                        
+                        // 删除成功后添加新记录
+                        db.run('INSERT INTO user_collections (user_id, type, image_index) VALUES (?, ?, ?)',
+                            [userId, selectedType, winningIndex], (err) => {
+                            if (err) {
+                                console.error('添加收藏失败:', err);
+                            }
+                            res.json({ success: true, items, winningItem });
+                        });
+                    });
+                } else {
+                    // 如果收藏数量未达到5个，直接添加新记录
+                    db.run('INSERT INTO user_collections (user_id, type, image_index) VALUES (?, ?, ?)',
                         [userId, selectedType, winningIndex], (err) => {
                         if (err) {
                             console.error('添加收藏失败:', err);
                         }
                         res.json({ success: true, items, winningItem });
                     });
-                } else {
-                    res.json({ success: true, items, winningItem });
                 }
             });
         });
