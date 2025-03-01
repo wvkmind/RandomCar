@@ -10,10 +10,10 @@ const { checkWikiContent } = require('./server/sensitiveWords');
 
 // 维基百科知识缓存
 let wikiCache = [];
-// const CACHE_SIZE = 100;
-// const CACHE_THRESHOLD = 20;
-const CACHE_SIZE = 2;
-const CACHE_THRESHOLD = 1;
+const CACHE_SIZE = 100;
+const CACHE_THRESHOLD = 50;
+// const CACHE_SIZE = 2;
+// const CACHE_THRESHOLD = 1;
 let isRefilling = false;
 
 // 确保wiki图片目录存在
