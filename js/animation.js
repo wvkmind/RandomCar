@@ -73,6 +73,16 @@ async function startSpinAnimation() {
                 clearInterval(timerInterval);
                 // 启用继续按钮
                 wikiContinueButton.disabled = false;
+                // 添加提示文本
+                const tipElement = document.createElement('div');
+                tipElement.style.position = 'absolute';
+                tipElement.style.left = '20px';
+                tipElement.style.bottom = '60px';
+                tipElement.style.color = '#4CAF50';
+                tipElement.style.fontSize = '14px';
+                tipElement.style.animation = 'pulse 1s infinite';
+                tipElement.textContent = '👉 点击这里继续';
+                wikiModal.querySelector('.wiki-content').appendChild(tipElement);
             }
             timeLeft--;
         }, 1000);

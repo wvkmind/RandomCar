@@ -98,12 +98,22 @@ async function addToHistory(item) {
                     industrial: []
                 };
                 
-                // 将服务器返回的收藏转换为历史记录格式
+                // 将服务器返回的收藏转换为历史记录格式，只保留最新的5条记录
+                const typeCollections = {};
                 data.collections.forEach(item => {
-                    const imagePath = `./public/${item.type}/pic${item.image_index}.png`;
-                    if (history[item.type].length < 5) {
-                        history[item.type].push(imagePath);
+                    if (!typeCollections[item.type]) {
+                        typeCollections[item.type] = [];
                     }
+                    typeCollections[item.type].push(item);
+                });
+                
+               
+                Object.keys(typeCollections).forEach(type => {
+                    const sortedItems = typeCollections[type].sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
+                    sortedItems.forEach(item => {
+                        const imagePath = `./public/${item.type}/pic${item.image_index}.png`;
+                        history[item.type].push(imagePath);
+                    });
                 });
             }
             
