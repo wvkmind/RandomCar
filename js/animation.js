@@ -224,11 +224,10 @@ async function startSpinProcess() {
             const currentOffset = progress * finalOffset;
             const currentItemIndex = Math.floor(currentOffset / itemWidth);
             
-            // 检测是否经过了新的物品，如果是则中断当前音效并重新播放
+            // 检测是否经过了新的物品，只更新索引而不重新播放音效
             if (currentItemIndex !== lastItemIndex) {
                 lastItemIndex = currentItemIndex;
-                // 中断当前音效并重新播放
-                startRollSound();
+                // 不再每次都重新播放音效，保持音效连贯
             }
             
             // 更新音效速度和音量
