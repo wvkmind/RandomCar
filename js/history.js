@@ -193,7 +193,7 @@ async function updateLeaderboard() {
                     const usernameCell = document.createElement('td');
                     usernameCell.textContent = user.username;
                     // 如果是当前用户，高亮显示
-                    if (user.id == window.userId) {
+                    if (user.username === window.currentUser) {
                         usernameCell.style.fontWeight = 'bold';
                         row.classList.add('current-user');
                     }
@@ -232,10 +232,10 @@ async function updateLeaderboard() {
                 });
                 
                 // 检查当前用户是否在前50名中
-                const userInTop50 = data.leaderboard.some(user => user.id == window.userId);
+                const userInTop50 = data.leaderboard.some(user => user.username === window.currentUser);
                 
                 // 如果当前用户不在前50名中，且有currentUser数据，在底部添加当前用户的排名信息
-                if (!userInTop50 && data.currentUser && window.userId) {
+                if (!userInTop50 && data.currentUser && window.currentUser) {
                     // 添加一个分隔行
                     const separatorRow = document.createElement('tr');
                     const separatorCell = document.createElement('td');

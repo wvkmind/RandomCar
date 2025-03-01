@@ -411,7 +411,6 @@ app.get('/leaderboard', (req, res) => {
         }
 
         const leaderboardData = users.map(user => ({
-            id: user.id,
             username: user.username,
             stats: {
                 covert: user.covert,
@@ -450,8 +449,8 @@ app.get('/leaderboard', (req, res) => {
         let currentUserData = null;
         
         if (userId) {
-            for (let i = 0; i < leaderboardData.length; i++) {
-                if (leaderboardData[i].id == userId) {
+            for (let i = 0; i < users.length; i++) {
+                if (users[i].id == userId) {
                     currentUserRank = i + 1;
                     currentUserData = leaderboardData[i];
                     break;
@@ -462,12 +461,15 @@ app.get('/leaderboard', (req, res) => {
         // 只返回前50名用户
         const top50 = leaderboardData.slice(0, 50);
         
-        // 如果当前用户不在前50名中，添加用户排名信息
+        // 如果当前用户不在前2名中，添加用户排名信息
         const result = {
             leaderboard: top50,
-            currentUser: currentUserRank > 50 ? {
+            currentUser: (currentUserRank > 50 && currentUserData) ? {
                 rank: currentUserRank,
-                data: currentUserData
+                data: {
+                    username: currentUserData.username,
+                    stats: currentUserData.stats
+                }
             } : null
         };
 
