@@ -84,36 +84,38 @@ app.post('/register', (req, res) => {
         return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
     }
 
-    // 检查用户名是否已存在
-    db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+    // 检查当前用户总数
+    db.get('SELECT COUNT(*) as count FROM users', [], (err, row) => {
         if (err) {
             return res.status(500).json({ success: false, message: '服务器错误' });
         }
-        if (row) {
-            return res.status(409).json({ success: false, message: '用户名已存在' });
+        
+        if (row.count >= 10000) {
+            return res.status(403).json({ success: false, message: '注册人数已达到上限（10000人），暂不接受新用户注册' });
         }
 
-        const token = generateToken();
-
-        // 创建新用户
-        db.run('INSERT INTO users (username, password, token) VALUES (?, ?, ?)', [username, password, token], function(err) {
+        // 检查用户名是否已存在
+        db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
             if (err) {
-                return res.status(500).json({ success: false, message: '注册失败' });
+                return res.status(500).json({ success: false, message: '服务器错误' });
             }
-            res.json({ 
-                success: true, 
-                message: '注册成功',
-                userId: this.lastID,
-                token: token,
-                stats: {
-                    username,
-                    covert: 0,
-                    classified: 0,
-                    restricted: 0,
-                    milspec: 0,
-                    industrial: 0,
-                    total: 0
+            if (row) {
+                return res.status(409).json({ success: false, message: '用户名已存在' });
+            }
+
+            const token = generateToken();
+
+            // 创建新用户
+            db.run('INSERT INTO users (username, password, token) VALUES (?, ?, ?)', [username, password, token], function(err) {
+                if (err) {
+                    return res.status(500).json({ success: false, message: '服务器错误' });
                 }
+                res.json({
+                    success: true,
+                    message: '注册成功',
+                    userId: this.lastID,
+                    token: token
+                });
             });
         });
     });
@@ -405,7 +407,7 @@ app.get('/leaderboard', (req, res) => {
     
     db.all('SELECT id, username, covert, classified, restricted, milspec, industrial, total FROM users', [], (err, users) => {
         if (err) {
-            return res.status(500).json({ success: false, message: '获取排行榜失败' });
+            return res.status(500).json({ success: false, message: '获取排行榜失败1' });
         }
 
         const leaderboardData = users.map(user => ({

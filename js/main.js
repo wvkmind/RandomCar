@@ -67,42 +67,32 @@ function clearSavedCredentials() {
     localStorage.removeItem('carSimulator_token');
 }
 
+// 导入工具函数
+import { fetchApi } from './utils.js';
+
 // 登录处理
 loginButton.addEventListener('click', async () => {
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
     if (username && password) {
-        try {
-            const response = await fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
+        const data = await fetchApi('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        }, '登录失败，请重试');
+        
+        if (data && data.success) {
+            window.currentUser = username;
+            window.userId = data.userId;
+            window.userToken = data.token;
+            loginModal.style.display = 'none';
+            userInfo.textContent = `当前用户: ${username}`;
+            loadHistory();
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            if (data.success) {
-                window.currentUser = username;
-                window.userId = data.userId;
-                window.userToken = data.token;
-                loginModal.style.display = 'none';
-                userInfo.textContent = `当前用户: ${username}`;
-                loadHistory();
-                
-                // 保存登录信息到本地
-                saveUserCredentials(username, password, data.userId, data.token);
-            } else {
-                console.error('登录失败:', data.message);
-                alert(data.message || '登录失败，请重试');
-            }
-        } catch (error) {
-            console.error('登录请求出错:', error.message);
-            alert('服务器连接失败，请确保服务器正在运行');
+            // 保存登录信息到本地
+            saveUserCredentials(username, password, data.userId, data.token);
         }
     } else {
         alert('请输入用户名和密码');
@@ -114,31 +104,18 @@ registerButton.addEventListener('click', async () => {
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
     if (username && password) {
-        try {
-            const response = await fetch('/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            if (data.success) {
-                alert('注册成功，请登录');
-                usernameInput.value = username;
-                passwordInput.value = '';
-            } else {
-                console.error('注册失败:', data.message);
-                alert(data.message || '注册失败，请重试');
-            }
-        } catch (error) {
-            console.error('注册请求出错:', error.message);
-            alert('服务器连接失败，请确保服务器正在运行');
+        const data = await fetchApi('/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        }, '注册失败，请重试');
+        
+        if (data && data.success) {
+            alert('注册成功，请登录');
+            usernameInput.value = username;
+            passwordInput.value = '';
         }
     } else {
         alert('请输入用户名和密码');
@@ -201,39 +178,28 @@ window.addEventListener('beforeunload', () => {
 
 // 使用保存的凭据自动登录
 async function autoLogin(credentials) {
-    try {
-        const response = await fetch('/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                username: credentials.username, 
-                password: credentials.password 
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (data.success) {
-            window.currentUser = credentials.username;
-            window.userId = data.userId;
-            window.userToken = data.token;
-            loginModal.style.display = 'none';
-            userInfo.textContent = `当前用户: ${credentials.username}`;
-            loadHistory();
-            return true;
-        } else {
-            console.error('自动登录失败:', data.message);
-            // 清除无效的保存凭据
-            clearSavedCredentials();
-            return false;
-        }
-    } catch (error) {
-        console.error('自动登录请求出错:', error.message);
+    const data = await fetchApi('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+            username: credentials.username, 
+            password: credentials.password 
+        })
+    }, '自动登录失败');
+    
+    if (data && data.success) {
+        window.currentUser = credentials.username;
+        window.userId = data.userId;
+        window.userToken = data.token;
+        loginModal.style.display = 'none';
+        userInfo.textContent = `当前用户: ${credentials.username}`;
+        loadHistory();
+        return true;
+    } else {
+        // 清除无效的保存凭据
+        clearSavedCredentials();
         return false;
     }
 }
