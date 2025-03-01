@@ -176,7 +176,12 @@ async function refillCache() {
 refillCache();
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// 为public目录下的静态文件添加缓存控制，设置最大缓存时间为1天
+app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: '1d', // 缓存1天
+    etag: true,    // 启用ETag
+    lastModified: true // 启用Last-Modified
+}));
 app.use(express.static(path.join(__dirname)));
 
 // 获取随机维基百科知识的API端点
