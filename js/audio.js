@@ -17,9 +17,28 @@ let currentSpeed = 50;
  * 开始播放滚动音效
  */
 function startRollSound() {
+    // 先停止当前播放的音效
+    rollSound.pause();
+    // 重置音效位置
     rollSound.currentTime = 0;
     rollSound.loop = true;
-    rollSound.play();
+    // 重新播放，并捕获可能的AbortError错误
+    try {
+        const playPromise = rollSound.play();
+        
+        // 处理play()返回的Promise
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                // 忽略AbortError，这是由于play()被pause()中断导致的
+                if (error.name !== 'AbortError') {
+                    console.error('音频播放错误:', error);
+                }
+            });
+        }
+    } catch (error) {
+        // 捕获其他可能的错误
+        console.error('音频播放错误:', error);
+    }
 }
 
 /**
@@ -36,14 +55,13 @@ function stopRollSound() {
  */
 function updateRollSpeed(progress) {
     // 根据进度调整音量和播放速度
-    if (progress < 0.7) {
-        const volume = Math.min(1, Math.max(0.3, 1 - progress));
-        rollSound.volume = volume;
-        
-        // 随着进度增加，播放速度逐渐减慢
-        const rate = Math.max(0.5, 1 - progress * 0.5);
-        rollSound.playbackRate = rate;
-    }
+    const volume = Math.min(1, Math.max(0.3, 1 - progress * 0.7));
+    rollSound.volume = volume;
+    
+    // 调整播放速度曲线，使开始更快，然后快速减慢
+    const initialSpeed = 5.0; // 提高初始速度
+    const rate = Math.max(0.8, initialSpeed - (progress * progress * 4)); // 使用二次曲线使减速更加明显
+    rollSound.playbackRate = rate;
 }
 
 /**
@@ -53,7 +71,22 @@ function updateRollSpeed(progress) {
 function playDropSound(rarity) {
     if (dropSounds[rarity]) {
         dropSounds[rarity].currentTime = 0;
-        dropSounds[rarity].play();
+        try {
+            const playPromise = dropSounds[rarity].play();
+            
+            // 处理play()返回的Promise
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // 忽略AbortError
+                    if (error.name !== 'AbortError') {
+                        console.error('音频播放错误:', error);
+                    }
+                });
+            }
+        } catch (error) {
+            // 捕获其他可能的错误
+            console.error('音频播放错误:', error);
+        }
     }
 }
 

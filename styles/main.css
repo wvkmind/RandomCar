@@ -44,14 +44,6 @@ body {
     opacity: 1;
 }
 
-.item.winner {
-    position: relative;
-    z-index: 1;
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-    transition: all 0.3s ease;
-}
-
 .items-container {
     display: flex;
     position: relative;

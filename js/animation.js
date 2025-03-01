@@ -3,6 +3,7 @@ import { startRollSound, stopRollSound, updateRollSpeed, playDropSound } from '.
 import { config } from './config.js';
 
 let isSpinning = false;
+let lastItemIndex = -1; // 跟踪上一个经过的物品索引
 
 /**
  * 创建抽取项目
@@ -98,9 +99,26 @@ async function startSpinAnimation() {
         // 计算最终偏移量，使中奖物品停在选择器位置
         const finalOffset = winnerIndex * itemWidth - targetPosition;
 
-        // 设置CSS过渡效果
-        itemsContainer.style.transition = 'transform 5s cubic-bezier(0.15, 0.85, 0.35, 1)';
-        itemsContainer.style.transform = `translateX(-${finalOffset}px)`;
+        // 先快速滚动一圈
+        const oneRoundOffset = displayItems.length / 5 * itemWidth; // 一圈的长度
+        
+        // 设置快速滚动的CSS过渡效果
+        itemsContainer.style.transition = 'transform 1s cubic-bezier(0.2, 0.4, 0.8, 0.9)';
+        itemsContainer.style.transform = `translateX(-${oneRoundOffset}px)`;
+        
+        // 快速滚动一圈后，再进入减速动画
+        setTimeout(() => {
+            // 重置过渡效果，立即回到起点
+            itemsContainer.style.transition = 'none';
+            itemsContainer.style.transform = 'translateX(0)';
+            
+            // 强制重绘
+            void itemsContainer.offsetWidth;
+            
+            // 设置最终减速动画的CSS过渡效果
+            itemsContainer.style.transition = 'transform 5s cubic-bezier(0.15, 0.85, 0.35, 1)';
+            itemsContainer.style.transform = `translateX(-${finalOffset}px)`;
+        });
 
         const startTime = performance.now();
         const duration = 5000;
@@ -108,21 +126,39 @@ async function startSpinAnimation() {
         function animate(currentTime) {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
-
+            
+            // 计算当前滚动位置
+            const itemWidth = 210;
+            const currentOffset = progress * finalOffset;
+            const currentItemIndex = Math.floor(currentOffset / itemWidth);
+            
+            // 检测是否经过了新的物品，如果是则中断当前音效并重新播放
+            if (currentItemIndex !== lastItemIndex) {
+                lastItemIndex = currentItemIndex;
+                // 中断当前音效并重新播放
+                startRollSound();
+            }
+            
+            // 更新音效速度和音量
             updateRollSpeed(progress);
             
+            // 在动画进度到达60%时停止音效，为最终结果展示创造更自然的过渡
+            if (progress >= 0.6) {
+                stopRollSound();
+            }
+            
             if (progress < 1) {
-                if (progress > 0.7) {
-                    stopRollSound();
-                }
                 requestAnimationFrame(animate);
             } else {
                 isSpinning = false;
-                stopRollSound();
+                lastItemIndex = -1; // 重置索引
                 
-                // 显示中奖结果
-                showResult(winningItem);
-                playDropSound(winningItem.type);
+                // 等待一小段时间确保音效完全停止后再显示结果
+                setTimeout(() => {
+                    // 显示中奖结果
+                    showResult(winningItem);
+                    playDropSound(winningItem.type);
+                }, 100);
                 
                 // 添加中奖标记
                 const selector = document.querySelector('.selector');
@@ -148,6 +184,7 @@ function showResult(item) {
     const resultModal = document.getElementById('resultModal');
     const resultImage = document.getElementById('resultImage');
     resultImage.src = item.image;
+    resultImage.className = `result-image ${item.type}`;
     resultModal.style.display = 'flex';
 }
 
