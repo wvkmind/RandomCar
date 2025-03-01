@@ -1,0 +1,87 @@
+.history-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 20px 0;
+    padding: 20px;
+    background: #2a2a2a;
+    border-radius: 8px;
+}
+
+.history-title {
+    color: white;
+    font-size: 20px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.history-section {
+    margin-bottom: 15px;
+}
+
+.history-section-title {
+    color: white;
+    font-size: 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.history-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.history-item {
+    width: 80px;
+    height: 80px;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.history-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.history-covert {
+    color: #EB4B4B;
+}
+
+.history-classified {
+    color: #D32CE6;
+}
+
+.history-restricted {
+    color: #8847FF;
+}
+
+.history-milspec {
+    color: #4B69FF;
+}
+
+.history-industrial {
+    color: #B0C3D9;
+}
+
+.history-item.covert {
+    border: 2px solid #EB4B4B;
+}
+
+.history-item.classified {
+    border: 2px solid #D32CE6;
+}
+
+.history-item.restricted {
+    border: 2px solid #8847FF;
+}
+
+.history-item.milspec {
+    border: 2px solid #4B69FF;
+}
+
+.history-item.industrial {
+    border: 2px solid #B0C3D9;
+}
